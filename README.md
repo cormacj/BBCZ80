@@ -1,3 +1,6 @@
+# ABOUT THIS FORK
+This fork is designed to enable the newer features of BBCBASIC V5 for Amstrad CP/M+ (aka CP/M V3)
+
 # BBCZ80
 BBC BASIC (Z80) v5 is an implementation of the BBC BASIC programming language for the Z80 CPU.
 It is largely compatible with Acorn's ARM BASIC V but with a few language extensions based on
