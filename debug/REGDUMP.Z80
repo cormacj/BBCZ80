@@ -9,12 +9,12 @@
 ; - Alternate registers (A', B', C', D', E', H', L')
 ; - Index registers (IX, IY)
 ; - Stack pointer (SP)
-; - Program counter (PC) - if available
 ; - All CPU flags (S, Z, H, P/V, N, C)
 ;
 ; Usage:  CALL REGDUMP
 ;
 ; Requires: OSWRCH (character output routine)
+;          CRLF (carriage return/line feed routine)
 ;
 
 	GLOBAL	REGDUMP
@@ -24,40 +24,72 @@
 
 ;
 ; REGDUMP - Display all registers and flags
-;   Destroys: A, all flags
+;   Input: None
+;   Output: Formatted register dump to console
+;   Destroys: A, all flags, but restores others
+;   Uses: Memory storage to capture register values (no SP offset indexing)
 ;
 REGDUMP:
-	PUSH	AF		; Save A and flags
+	; Save current state first
+	PUSH	AF
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
 	PUSH	IY
 	
-	EX	AF,AF'		; Get alternate A'
-	LD	(ALTP),A	; Save A'
+	; Store all primary registers to memory (no SP offset addressing)
+	POP	IY		; Restore IY and save to memory
+	LD	(SAVE_IY),IY
+	PUSH	IY
+	
+	POP	IX		; Restore IX and save to memory
+	LD	(SAVE_IX),IX
+	PUSH	IX
+	
+	POP	HL		; Restore HL and save to memory
+	LD	(SAVE_HL),HL
+	PUSH	HL
+	
+	POP	DE		; Restore DE and save to memory
+	LD	(SAVE_DE),DE
+	PUSH	DE
+	
+	POP	BC		; Restore BC and save to memory
+	LD	(SAVE_BC),BC
+	PUSH	BC
+	
+	POP	AF		; Restore AF and save A register
+	LD	(SAVE_AF),A
+	PUSH	AF
+	
+	; Save flags register
+	PUSH	AF
+	POP	HL		; Get AF into HL (F is in L)
+	LD	A,L		; Extract F register
+	LD	(SAVE_FLAGS),A
+	
+	; Save alternate registers using EX and EXX
+	EX	AF,AF'		; Get alternate A
+	LD	(SAVE_AP),A
 	EX	AF,AF'		; Back to normal
 	
-	EXX			; Get alternate registers B'C'D'E'H'L'
-	LD	(ALTBC),BC
-	LD	(ALTDE),DE
-	LD	(ALTHL),HL
+	EXX			; Get alternate BC, DE, HL
+	LD	(SAVE_BP),B
+	LD	(SAVE_CP),C
+	LD	(SAVE_DP),D
+	LD	(SAVE_EP),E
+	LD	(SAVE_HP),H
+	LD	(SAVE_LP),L
+	LD	(SAVE_BCP),BC
 	EXX			; Back to normal
 	
-	LD	A,(ALTBC+1)	; Get B' from BC'
-	LD	(ALTB),A
-	LD	A,(ALTBC)	; Get C' from BC'
-	LD	(ALTC),A
-	LD	A,(ALTDE+1)	; Get D' from DE'
-	LD	(ALTD),A
-	LD	A,(ALTDE)	; Get E' from DE'
-	LD	(ALTE),A
-	LD	A,(ALTHL+1)	; Get H' from HL'
-	LD	(ALTH),A
-	LD	A,(ALTHL)	; Get L' from HL'
-	LD	(ALTL),A
+	; Get current SP value
+	LD	HL,0
+	ADD	HL,SP
+	LD	(SAVE_SP),HL
 	
-	; Print title
+	; === PRINT HEADER ===
 	LD	A,'='
 	CALL	OSWRCH
 	LD	A,'='
@@ -70,156 +102,153 @@ REGDUMP:
 	CALL	CRLF
 	CALL	CRLF
 	
-	; Main registers
+	; === PRIMARY REGISTERS - ROW 1 ===
 	LD	HL,LBL_A
 	CALL	PRTSTR
-	LD	A,(SP+7)	; Get A from stack
+	LD	A,(SAVE_AF)
 	CALL	PRTHEX
 	
 	LD	HL,LBL_B
 	CALL	PRTSTR
-	LD	A,(SP+5)	; Get B from stack
+	LD	BC,(SAVE_BC)
+	LD	A,B
 	CALL	PRTHEX
 	
 	LD	HL,LBL_C
 	CALL	PRTSTR
-	LD	A,(SP+4)	; Get C from stack
+	LD	BC,(SAVE_BC)
+	LD	A,C
 	CALL	PRTHEX
 	
 	CALL	CRLF
 	
+	; === PRIMARY REGISTERS - ROW 2 ===
 	LD	HL,LBL_D
 	CALL	PRTSTR
-	LD	A,(SP+3)	; Get D from stack
+	LD	DE,(SAVE_DE)
+	LD	A,D
 	CALL	PRTHEX
 	
 	LD	HL,LBL_E
 	CALL	PRTSTR
-	LD	A,(SP+2)	; Get E from stack
+	LD	DE,(SAVE_DE)
+	LD	A,E
 	CALL	PRTHEX
 	
 	LD	HL,LBL_H
 	CALL	PRTSTR
-	LD	A,(SP+1)	; Get H from stack
+	LD	HL,(SAVE_HL)
+	LD	A,H
 	CALL	PRTHEX
 	
 	CALL	CRLF
 	
+	; === PRIMARY REGISTERS - ROW 3 ===
 	LD	HL,LBL_L
 	CALL	PRTSTR
-	LD	A,(SP)	; Get L from stack
+	LD	HL,(SAVE_HL)
+	LD	A,L
 	CALL	PRTHEX
 	
 	LD	HL,LBL_SP
 	CALL	PRTSTR
-	LD	H,(SP+11)	; Get SP high byte
-	LD	L,(SP+10)	; Get SP low byte
-	ADD	HL,SP
+	LD	HL,(SAVE_SP)
 	CALL	PRTHEX16
 	
 	CALL	CRLF
 	CALL	CRLF
 	
-	; 16-bit register pairs
+	; === 16-BIT REGISTER PAIRS ===
 	LD	HL,LBL_BC16
 	CALL	PRTSTR
-	LD	H,(SP+5)
-	LD	L,(SP+4)
+	LD	HL,(SAVE_BC)
 	CALL	PRTHEX16
 	
 	LD	HL,LBL_DE16
 	CALL	PRTSTR
-	LD	H,(SP+3)
-	LD	L,(SP+2)
+	LD	HL,(SAVE_DE)
 	CALL	PRTHEX16
 	
 	LD	HL,LBL_HL16
 	CALL	PRTSTR
-	LD	H,(SP+1)
-	LD	L,(SP)
+	LD	HL,(SAVE_HL)
 	CALL	PRTHEX16
 	
 	CALL	CRLF
 	CALL	CRLF
 	
-	; Index registers
+	; === INDEX REGISTERS ===
 	LD	HL,LBL_IX
 	CALL	PRTSTR
-	LD	L,(SP+9)	; Get IX low byte
-	LD	H,(SP+10)	; Get IX high byte
+	LD	HL,(SAVE_IX)
 	CALL	PRTHEX16
 	
 	LD	HL,LBL_IY
 	CALL	PRTSTR
-	LD	L,(SP+7)	; Get IY low byte
-	LD	H,(SP+8)	; Get IY high byte
+	LD	HL,(SAVE_IY)
 	CALL	PRTHEX16
 	
 	CALL	CRLF
 	CALL	CRLF
 	
-	; Alternate registers
+	; === ALTERNATE REGISTERS - ROW 1 ===
 	LD	HL,LBL_AP
 	CALL	PRTSTR
-	LD	A,(ALTP)
+	LD	A,(SAVE_AP)
 	CALL	PRTHEX
 	
 	LD	HL,LBL_BP
 	CALL	PRTSTR
-	LD	A,(ALTB)
+	LD	A,(SAVE_BP)
 	CALL	PRTHEX
 	
 	LD	HL,LBL_CP
 	CALL	PRTSTR
-	LD	A,(ALTC)
+	LD	A,(SAVE_CP)
 	CALL	PRTHEX
 	
 	CALL	CRLF
 	
+	; === ALTERNATE REGISTERS - ROW 2 ===
 	LD	HL,LBL_DP
 	CALL	PRTSTR
-	LD	A,(ALTD)
+	LD	A,(SAVE_DP)
 	CALL	PRTHEX
 	
 	LD	HL,LBL_EP
 	CALL	PRTSTR
-	LD	A,(ALTE)
+	LD	A,(SAVE_EP)
 	CALL	PRTHEX
 	
 	LD	HL,LBL_HP
 	CALL	PRTSTR
-	LD	A,(ALTH)
+	LD	A,(SAVE_HP)
 	CALL	PRTHEX
 	
 	CALL	CRLF
 	
+	; === ALTERNATE REGISTERS - ROW 3 ===
 	LD	HL,LBL_LP
 	CALL	PRTSTR
-	LD	A,(ALTL)
+	LD	A,(SAVE_LP)
 	CALL	PRTHEX
 	
 	LD	HL,LBL_BC16P
 	CALL	PRTSTR
-	LD	H,(ALTBC+1)
-	LD	L,(ALTBC)
+	LD	HL,(SAVE_BCP)
 	CALL	PRTHEX16
 	
 	CALL	CRLF
 	CALL	CRLF
 	
-	; CPU Flags
+	; === CPU FLAGS ===
 	LD	HL,LBL_FLAGS
 	CALL	PRTSTR
 	CALL	CRLF
 	
-	LD	A,(SP+7)	; Get saved flags from A (flags in upper nibble after PUSH AF)
+	LD	A,(SAVE_FLAGS)
 	
-	; Get the flags from the saved stack location
-	; Note: PUSH AF puts F (flags) in lower byte of the pushed word
-	LD	HL,(SP+6)	; Get F register from stack
-	LD	A,L		; A = F register
-	
-	; Display individual flags
+	; Carry flag (bit 0)
 	LD	HL,LBL_C_FLAG
 	CALL	PRTSTR
 	BIT	0,A
@@ -228,27 +257,30 @@ REGDUMP:
 	LD	A,'1'
 NOCARRY:	CALL	OSWRCH
 	
+	; Subtract flag (bit 1)
 	LD	HL,LBL_N_FLAG
 	CALL	PRTSTR
-	LD	A,(SP+6)	; Get F again
+	LD	A,(SAVE_FLAGS)
 	BIT	1,A
 	LD	A,'0'
 	JR	Z,NOSUBTRACT
 	LD	A,'1'
 NOSUBTRACT: CALL	OSWRCH
 	
+	; Parity flag (bit 2)
 	LD	HL,LBL_P_FLAG
 	CALL	PRTSTR
-	LD	A,(SP+6)
+	LD	A,(SAVE_FLAGS)
 	BIT	2,A
 	LD	A,'0'
 	JR	Z,NOPARITY
 	LD	A,'1'
 NOPARITY:	CALL	OSWRCH
 	
+	; Half-carry flag (bit 4)
 	LD	HL,LBL_H_FLAG
 	CALL	PRTSTR
-	LD	A,(SP+6)
+	LD	A,(SAVE_FLAGS)
 	BIT	4,A
 	LD	A,'0'
 	JR	Z,NOHALF
@@ -257,18 +289,20 @@ NOHALF:		CALL	OSWRCH
 	
 	CALL	CRLF
 	
+	; Zero flag (bit 6)
 	LD	HL,LBL_Z_FLAG
 	CALL	PRTSTR
-	LD	A,(SP+6)
+	LD	A,(SAVE_FLAGS)
 	BIT	6,A
 	LD	A,'0'
 	JR	Z,NOZERO
 	LD	A,'1'
 NOZERO:		CALL	OSWRCH
 	
+	; Sign flag (bit 7)
 	LD	HL,LBL_S_FLAG
 	CALL	PRTSTR
-	LD	A,(SP+6)
+	LD	A,(SAVE_FLAGS)
 	BIT	7,A
 	LD	A,'0'
 	JR	Z,NOSIGN
@@ -289,6 +323,10 @@ NOSIGN:		CALL	OSWRCH
 
 ;
 ; PRTSTR - Print null-terminated string at HL
+;   Input: HL = pointer to string (null-terminated)
+;   Output: String printed to console
+;   Destroys: A, HL
+;   Uses: OSWRCH
 ;
 PRTSTR:	LD	A,(HL)
 	OR	A
@@ -299,6 +337,10 @@ PRTSTR:	LD	A,(HL)
 
 ;
 ; PRTHEX - Print A as two hex digits
+;   Input: A = value to print (8-bit)
+;   Output: 2 hex digits sent to console
+;   Destroys: A
+;   Uses: OSWRCH
 ;
 PRTHEX:	PUSH	AF
 	RRA
@@ -317,6 +359,10 @@ HEXDIG:	AND	0FH
 
 ;
 ; PRTHEX16 - Print HL as four hex digits (high byte first)
+;   Input: HL = 16-bit value
+;   Output: 4 hex digits sent to console (HHLL format)
+;   Destroys: A, HL
+;   Uses: OSWRCH, PRTHEX
 ;
 PRTHEX16:
 	LD	A,H
@@ -326,22 +372,33 @@ PRTHEX16:
 	RET
 
 ;
-; DATA STORAGE FOR ALTERNATE REGISTERS
+; MEMORY STORAGE FOR SAVED REGISTER VALUES
+; All values stored in RAM to avoid SP offset addressing issues
 ;
-ALTP:		DEFB	0
-ALTB:		DEFB	0
-ALTC:		DEFB	0
-ALTD:		DEFB	0
-ALTE:		DEFB	0
-ALTH:		DEFB	0
-ALTL:		DEFB	0
-ALTBC:		DEFW	0
-ALTDE:		DEFW	0
-ALTHL:		DEFW	0
+
+SAVE_AF:	DEFB	0	; A register (8-bit)
+SAVE_BC:	DEFW	0	; BC register pair (16-bit)
+SAVE_DE:	DEFW	0	; DE register pair (16-bit)
+SAVE_HL:	DEFW	0	; HL register pair (16-bit)
+SAVE_SP:	DEFW	0	; Stack pointer (16-bit)
+SAVE_IX:	DEFW	0	; IX index register (16-bit)
+SAVE_IY:	DEFW	0	; IY index register (16-bit)
+SAVE_FLAGS:	DEFB	0	; CPU flags (8-bit)
+
+; Alternate register values (EX AF,AF' and EXX registers)
+SAVE_AP:	DEFB	0	; A' (alternate A, 8-bit)
+SAVE_BP:	DEFB	0	; B' (alternate B, 8-bit)
+SAVE_CP:	DEFB	0	; C' (alternate C, 8-bit)
+SAVE_DP:	DEFB	0	; D' (alternate D, 8-bit)
+SAVE_EP:	DEFB	0	; E' (alternate E, 8-bit)
+SAVE_HP:	DEFB	0	; H' (alternate H, 8-bit)
+SAVE_LP:	DEFB	0	; L' (alternate L, 8-bit)
+SAVE_BCP:	DEFW	0	; BC' (alternate BC pair, 16-bit)
 
 ;
-; STRING LABELS
+; STRING LABELS FOR DISPLAY
 ;
+
 TITLE:		DEFM	'Z80 REGISTER DUMP'
 		DEFB	0
 
@@ -393,17 +450,17 @@ LBL_BC16P:	DEFM	"  BC' = "
 
 LBL_FLAGS:	DEFM	'CPU FLAGS:'
 		DEFB	0
-LBL_C_FLAG:	DEFM	'  C (Carry)     = '
+LBL_C_FLAG:	DEFM	'  C (Carry)      = '
 		DEFB	0
-LBL_N_FLAG:	DEFM	'  N (Add/Sub)   = '
+LBL_N_FLAG:	DEFM	'  N (Add/Sub)    = '
 		DEFB	0
-LBL_P_FLAG:	DEFM	'  P/V (Parity)  = '
+LBL_P_FLAG:	DEFM	'  P/V (Parity)   = '
 		DEFB	0
-LBL_H_FLAG:	DEFM	'  H (Half-carry)= '
+LBL_H_FLAG:	DEFM	'  H (Half-carry) = '
 		DEFB	0
-LBL_Z_FLAG:	DEFM	'  Z (Zero)      = '
+LBL_Z_FLAG:	DEFM	'  Z (Zero)       = '
 		DEFB	0
-LBL_S_FLAG:	DEFM	'  S (Sign)      = '
+LBL_S_FLAG:	DEFM	'  S (Sign)       = '
 		DEFB	0
 
 	END
