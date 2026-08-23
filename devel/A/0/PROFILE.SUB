@@ -9,7 +9,7 @@ z80asm hook/rmf
 z80asm data/rmf
 era bbcbasic.com
 era *.lst
-link bbcbasic=dist,main,exec,eval,asmb,math,hook,cmos,/p:4B00,data
+link bbcbasic=dist,main,exec,eval,asmb,math,hook,cmos,/p:4D00,data
 hexbin bbcbasic
 era bbcbasic.hex
 ren bbcbasic.com=bbcbasic.bin
