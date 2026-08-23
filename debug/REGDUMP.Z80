@@ -1,0 +1,409 @@
+	TITLE	BBC BASIC - Z80 REGISTER AND FLAGS DUMP UTILITY
+;
+;DEBUG ROUTINE TO DISPLAY ALL Z80 REGISTERS AND FLAGS
+;(C) 2025
+;
+;Displays:
+; - All 8-bit registers (A, B, C, D, E, H, L)
+; - All 16-bit register pairs (BC, DE, HL)
+; - Alternate registers (A', B', C', D', E', H', L')
+; - Index registers (IX, IY)
+; - Stack pointer (SP)
+; - Program counter (PC) - if available
+; - All CPU flags (S, Z, H, P/V, N, C)
+;
+; Usage:  CALL REGDUMP
+;
+; Requires: OSWRCH (character output routine)
+;
+
+	GLOBAL	REGDUMP
+
+	EXTRN	OSWRCH
+	EXTRN	CRLF
+
+;
+; REGDUMP - Display all registers and flags
+;   Destroys: A, all flags
+;
+REGDUMP:
+	PUSH	AF		; Save A and flags
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	PUSH	IX
+	PUSH	IY
+	
+	EX	AF,AF'		; Get alternate A'
+	LD	(ALTP),A	; Save A'
+	EX	AF,AF'		; Back to normal
+	
+	EXX			; Get alternate registers B'C'D'E'H'L'
+	LD	(ALTBC),BC
+	LD	(ALTDE),DE
+	LD	(ALTHL),HL
+	EXX			; Back to normal
+	
+	LD	A,(ALTBC+1)	; Get B' from BC'
+	LD	(ALTB),A
+	LD	A,(ALTBC)	; Get C' from BC'
+	LD	(ALTC),A
+	LD	A,(ALTDE+1)	; Get D' from DE'
+	LD	(ALTD),A
+	LD	A,(ALTDE)	; Get E' from DE'
+	LD	(ALTE),A
+	LD	A,(ALTHL+1)	; Get H' from HL'
+	LD	(ALTH),A
+	LD	A,(ALTHL)	; Get L' from HL'
+	LD	(ALTL),A
+	
+	; Print title
+	LD	A,'='
+	CALL	OSWRCH
+	LD	A,'='
+	CALL	OSWRCH
+	LD	A,' '
+	CALL	OSWRCH
+	LD	HL,TITLE
+	CALL	PRTSTR
+	
+	CALL	CRLF
+	CALL	CRLF
+	
+	; Main registers
+	LD	HL,LBL_A
+	CALL	PRTSTR
+	LD	A,(SP+7)	; Get A from stack
+	CALL	PRTHEX
+	
+	LD	HL,LBL_B
+	CALL	PRTSTR
+	LD	A,(SP+5)	; Get B from stack
+	CALL	PRTHEX
+	
+	LD	HL,LBL_C
+	CALL	PRTSTR
+	LD	A,(SP+4)	; Get C from stack
+	CALL	PRTHEX
+	
+	CALL	CRLF
+	
+	LD	HL,LBL_D
+	CALL	PRTSTR
+	LD	A,(SP+3)	; Get D from stack
+	CALL	PRTHEX
+	
+	LD	HL,LBL_E
+	CALL	PRTSTR
+	LD	A,(SP+2)	; Get E from stack
+	CALL	PRTHEX
+	
+	LD	HL,LBL_H
+	CALL	PRTSTR
+	LD	A,(SP+1)	; Get H from stack
+	CALL	PRTHEX
+	
+	CALL	CRLF
+	
+	LD	HL,LBL_L
+	CALL	PRTSTR
+	LD	A,(SP)	; Get L from stack
+	CALL	PRTHEX
+	
+	LD	HL,LBL_SP
+	CALL	PRTSTR
+	LD	H,(SP+11)	; Get SP high byte
+	LD	L,(SP+10)	; Get SP low byte
+	ADD	HL,SP
+	CALL	PRTHEX16
+	
+	CALL	CRLF
+	CALL	CRLF
+	
+	; 16-bit register pairs
+	LD	HL,LBL_BC16
+	CALL	PRTSTR
+	LD	H,(SP+5)
+	LD	L,(SP+4)
+	CALL	PRTHEX16
+	
+	LD	HL,LBL_DE16
+	CALL	PRTSTR
+	LD	H,(SP+3)
+	LD	L,(SP+2)
+	CALL	PRTHEX16
+	
+	LD	HL,LBL_HL16
+	CALL	PRTSTR
+	LD	H,(SP+1)
+	LD	L,(SP)
+	CALL	PRTHEX16
+	
+	CALL	CRLF
+	CALL	CRLF
+	
+	; Index registers
+	LD	HL,LBL_IX
+	CALL	PRTSTR
+	LD	L,(SP+9)	; Get IX low byte
+	LD	H,(SP+10)	; Get IX high byte
+	CALL	PRTHEX16
+	
+	LD	HL,LBL_IY
+	CALL	PRTSTR
+	LD	L,(SP+7)	; Get IY low byte
+	LD	H,(SP+8)	; Get IY high byte
+	CALL	PRTHEX16
+	
+	CALL	CRLF
+	CALL	CRLF
+	
+	; Alternate registers
+	LD	HL,LBL_AP
+	CALL	PRTSTR
+	LD	A,(ALTP)
+	CALL	PRTHEX
+	
+	LD	HL,LBL_BP
+	CALL	PRTSTR
+	LD	A,(ALTB)
+	CALL	PRTHEX
+	
+	LD	HL,LBL_CP
+	CALL	PRTSTR
+	LD	A,(ALTC)
+	CALL	PRTHEX
+	
+	CALL	CRLF
+	
+	LD	HL,LBL_DP
+	CALL	PRTSTR
+	LD	A,(ALTD)
+	CALL	PRTHEX
+	
+	LD	HL,LBL_EP
+	CALL	PRTSTR
+	LD	A,(ALTE)
+	CALL	PRTHEX
+	
+	LD	HL,LBL_HP
+	CALL	PRTSTR
+	LD	A,(ALTH)
+	CALL	PRTHEX
+	
+	CALL	CRLF
+	
+	LD	HL,LBL_LP
+	CALL	PRTSTR
+	LD	A,(ALTL)
+	CALL	PRTHEX
+	
+	LD	HL,LBL_BC16P
+	CALL	PRTSTR
+	LD	H,(ALTBC+1)
+	LD	L,(ALTBC)
+	CALL	PRTHEX16
+	
+	CALL	CRLF
+	CALL	CRLF
+	
+	; CPU Flags
+	LD	HL,LBL_FLAGS
+	CALL	PRTSTR
+	CALL	CRLF
+	
+	LD	A,(SP+7)	; Get saved flags from A (flags in upper nibble after PUSH AF)
+	
+	; Get the flags from the saved stack location
+	; Note: PUSH AF puts F (flags) in lower byte of the pushed word
+	LD	HL,(SP+6)	; Get F register from stack
+	LD	A,L		; A = F register
+	
+	; Display individual flags
+	LD	HL,LBL_C_FLAG
+	CALL	PRTSTR
+	BIT	0,A
+	LD	A,'0'
+	JR	Z,NOCARRY
+	LD	A,'1'
+NOCARRY:	CALL	OSWRCH
+	
+	LD	HL,LBL_N_FLAG
+	CALL	PRTSTR
+	LD	A,(SP+6)	; Get F again
+	BIT	1,A
+	LD	A,'0'
+	JR	Z,NOSUBTRACT
+	LD	A,'1'
+NOSUBTRACT: CALL	OSWRCH
+	
+	LD	HL,LBL_P_FLAG
+	CALL	PRTSTR
+	LD	A,(SP+6)
+	BIT	2,A
+	LD	A,'0'
+	JR	Z,NOPARITY
+	LD	A,'1'
+NOPARITY:	CALL	OSWRCH
+	
+	LD	HL,LBL_H_FLAG
+	CALL	PRTSTR
+	LD	A,(SP+6)
+	BIT	4,A
+	LD	A,'0'
+	JR	Z,NOHALF
+	LD	A,'1'
+NOHALF:		CALL	OSWRCH
+	
+	CALL	CRLF
+	
+	LD	HL,LBL_Z_FLAG
+	CALL	PRTSTR
+	LD	A,(SP+6)
+	BIT	6,A
+	LD	A,'0'
+	JR	Z,NOZERO
+	LD	A,'1'
+NOZERO:		CALL	OSWRCH
+	
+	LD	HL,LBL_S_FLAG
+	CALL	PRTSTR
+	LD	A,(SP+6)
+	BIT	7,A
+	LD	A,'0'
+	JR	Z,NOSIGN
+	LD	A,'1'
+NOSIGN:		CALL	OSWRCH
+	
+	CALL	CRLF
+	CALL	CRLF
+	
+	; Restore registers
+	POP	IY
+	POP	IX
+	POP	HL
+	POP	DE
+	POP	BC
+	POP	AF
+	RET
+
+;
+; PRTSTR - Print null-terminated string at HL
+;
+PRTSTR:	LD	A,(HL)
+	OR	A
+	RET	Z
+	CALL	OSWRCH
+	INC	HL
+	JR	PRTSTR
+
+;
+; PRTHEX - Print A as two hex digits
+;
+PRTHEX:	PUSH	AF
+	RRA
+	RRA
+	RRA
+	RRA
+	CALL	HEXDIG
+	POP	AF
+HEXDIG:	AND	0FH
+	ADD	A,90H
+	DAA
+	ADC	A,40H
+	DAA
+	CALL	OSWRCH
+	RET
+
+;
+; PRTHEX16 - Print HL as four hex digits (high byte first)
+;
+PRTHEX16:
+	LD	A,H
+	CALL	PRTHEX
+	LD	A,L
+	CALL	PRTHEX
+	RET
+
+;
+; DATA STORAGE FOR ALTERNATE REGISTERS
+;
+ALTP:		DEFB	0
+ALTB:		DEFB	0
+ALTC:		DEFB	0
+ALTD:		DEFB	0
+ALTE:		DEFB	0
+ALTH:		DEFB	0
+ALTL:		DEFB	0
+ALTBC:		DEFW	0
+ALTDE:		DEFW	0
+ALTHL:		DEFW	0
+
+;
+; STRING LABELS
+;
+TITLE:		DEFM	'Z80 REGISTER DUMP'
+		DEFB	0
+
+LBL_A:		DEFM	'A   = '
+		DEFB	0
+LBL_B:		DEFM	'  B   = '
+		DEFB	0
+LBL_C:		DEFM	'  C   = '
+		DEFB	0
+LBL_D:		DEFM	'D   = '
+		DEFB	0
+LBL_E:		DEFM	'  E   = '
+		DEFB	0
+LBL_H:		DEFM	'  H   = '
+		DEFB	0
+LBL_L:		DEFM	'L   = '
+		DEFB	0
+LBL_SP:		DEFM	'  SP  = '
+		DEFB	0
+
+LBL_BC16:	DEFM	'BC  = '
+		DEFB	0
+LBL_DE16:	DEFM	'  DE  = '
+		DEFB	0
+LBL_HL16:	DEFM	'  HL  = '
+		DEFB	0
+
+LBL_IX:		DEFM	'IX  = '
+		DEFB	0
+LBL_IY:		DEFM	'  IY  = '
+		DEFB	0
+
+LBL_AP:		DEFM	"A'  = "
+		DEFB	0
+LBL_BP:		DEFM	"  B'  = "
+		DEFB	0
+LBL_CP:		DEFM	"  C'  = "
+		DEFB	0
+LBL_DP:		DEFM	"D'  = "
+		DEFB	0
+LBL_EP:		DEFM	"  E'  = "
+		DEFB	0
+LBL_HP:		DEFM	"  H'  = "
+		DEFB	0
+LBL_LP:		DEFM	"L'  = "
+		DEFB	0
+LBL_BC16P:	DEFM	"  BC' = "
+		DEFB	0
+
+LBL_FLAGS:	DEFM	'CPU FLAGS:'
+		DEFB	0
+LBL_C_FLAG:	DEFM	'  C (Carry)     = '
+		DEFB	0
+LBL_N_FLAG:	DEFM	'  N (Add/Sub)   = '
+		DEFB	0
+LBL_P_FLAG:	DEFM	'  P/V (Parity)  = '
+		DEFB	0
+LBL_H_FLAG:	DEFM	'  H (Half-carry)= '
+		DEFB	0
+LBL_Z_FLAG:	DEFM	'  Z (Zero)      = '
+		DEFB	0
+LBL_S_FLAG:	DEFM	'  S (Sign)      = '
+		DEFB	0
+
+	END
