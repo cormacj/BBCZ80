@@ -14,23 +14,32 @@
 ;
 ; Usage:  CALL REGDUMP
 ;
-; Requires: OSWRCH (character output routine)
+; Requires: OUTCH (character output routine)
 ;
 
 	GLOBAL	REGDUMP
 
-	; EXTRN	OSWRCH
-	EXTRN	CRLF
+	; EXTRN	OUTCH
+	;EXTRN	CRLF
 
 ;
 ; REGDUMP - Display all registers and flags
 ;   Destroys: A, all flags
 ;
-OSWRCH:
+OUTCH:
+PUTCHAR:
+    PUSH AF
+    PUSH BC
+    PUSH DE
+    PUSH HL
     ld c, 2             ; CP/M BDOS function 2: Console Output
     ld e, a             ; CP/M expects the character in register E
-    jp 5            ; Call BDOS (it handles its own return)
-
+    call 5            ; Call BDOS (it handles its own return)
+    POP HL
+    POP DE
+    POP BC
+    POP AF
+    ret
 
     ;
     ; REGDUMP - Display all registers and flags
@@ -39,39 +48,155 @@ OSWRCH:
     ;   Destroys: A, all flags, but restores others
     ;   Uses: Memory storage to capture register values (no SP offset indexing)
     ;
+    ; REGDUMP:
+    ;     ld a,81
+    ;     call PUTCHAR
+    ;     ld a,128
+    ;     call PRINT_HEX_NUMBER
+    ; ; Z80 Register Dump Routine
+    ; ; Assumes a working 'PUTCHAR' routine exists that prints the ASCII char in A.
+    ;
+    ;     push    af          ; Save AF to stack
+    ;     push    bc          ; Save BC to stack
+    ;     push    de          ; Save DE to stack
+    ;     push    hl          ; Save HL to stack
+    ;
+    ;     ; Print Header
+    ;     ld      de, msg_reg
+    ;     call    PRINT_STR
+    ;
+    ;     ; Pull and print HL from stack
+    ;     pop     hl
+    ;     call    PRINT_HL_HEX
+    ;     ld      a, ' '
+    ;     call    PUTCHAR
+    ;
+    ;     ; Pull and print DE
+    ;     pop     hl          ; Use HL as temporary holder via stack pop
+    ;     call    PRINT_HL_HEX
+    ;     ld      a, ' '
+    ;     call    PUTCHAR
+    ;
+    ;     ; Pull and print BC
+    ;     pop     hl
+    ;     call    PRINT_HL_HEX
+    ;     ld      a, ' '
+    ;     call    PUTCHAR
+    ;
+    ;     ; Pull and print AF
+    ;     pop     hl
+    ;     call    PRINT_HL_HEX
+    ;     ret
+    ;
+    ; ; Helper: Print 16-bit value in HL as Hex
+    ; PRINT_HL_HEX:
+    ;     ld      a, h
+    ;     call    PRINT_A_HEX
+    ;     ld      a, l
+    ;     call    PRINT_A_HEX
+    ;     ret
+    ;
+    ; ; Helper: Print 8-bit value in A as Hex
+    ; ; PRINT_A_HEX:
+    ; ;     push    af
+    ; ;     rra
+    ; ;     rra
+    ; ;     rra
+    ; ;     rra
+    ; ;     call    NIBBLE_TO_ASCII
+    ; ;     call    PUTCHAR
+    ; ;     pop     af
+    ; ;     call    NIBBLE_TO_ASCII
+    ; ;     call    PUTCHAR
+    ; ; ;     ret
+    ;
+    ; NIBBLE_TO_ASCII:
+    ;     and     0FH
+    ;     add     09H
+    ;     daa
+    ;     adc     40H
+    ;     daa
+    ;     ret
+    ;
+    ; PRINT_STR:
+    ;     ld      a, (de)
+    ;     or      a
+    ;     ret     z
+    ;     call    PUTCHAR
+    ;     inc     de
+    ;     jr      PRINT_STR
+    ;
+    ; msg_reg:
+    ;     db      "AF BC DE HL: ", 0
+    ;
+    ;     ;;
+    ;     ;; This program demonstrates converting the number in HL to
+    ;     ;; ASCII and outputing it.
+    ;     ;;
+    ;     PRINT_A_HEX:
+    ;     PRINT_HEX_NUMBER:
+    ;         push af                                                    ; d93a    f5     .
+    ;         sra a                                                      ; d93b    cb 2f     . /
+    ;         sra a                                                      ; d93d    cb 2f     . /
+    ;         sra a                                                      ; d93f    cb 2f     . /
+    ;         sra a                                                      ; d941    cb 2f     . /
+    ;         call sub_d947h                                             ; d943    cd 47 d9     . G .
+    ;         pop af                                                     ; d946    f1     .
+    ;     sub_d947h:
+    ;         and 00fh                                                   ; d947    e6 0f     . .
+    ;         cp 00ah                                                    ; d949    fe 0a     . .
+    ;         jr c,ld94fh                                                ; d94b    38 02     8 .
+    ;         add a,007h                                                 ; d94d    c6 07     . .
+    ;     ld94fh:
+    ;         add a,030h                                                 ; d94f    c6 30     . 0
+    ;         jp PUTCHAR
+    CRLF:
+        LD A,13
+        CALL OUTCH
+        LD A,10
+        JP OUTCH
+
     REGDUMP:
+        ; LD HL,TESTSTR
+        ; CALL PRTSTR
     	; Save current state first
-    	PUSH	AF
+        PUSH	AF
     	PUSH	BC
     	PUSH	DE
     	PUSH	HL
     	PUSH	IX
     	PUSH	IY
 
+    	PUSH	AF
+    	PUSH	BC
+    	PUSH	DE
+    	PUSH	HL
+    	PUSH	IX
+    	PUSH	IY
     	; Store all primary registers to memory (no SP offset addressing)
     	POP	IY		; Restore IY and save to memory
     	LD	(SAVE_IY),IY
-    	PUSH	IY
+    	; PUSH	IY
 
     	POP	IX		; Restore IX and save to memory
     	LD	(SAVE_IX),IX
-    	PUSH	IX
+    	; PUSH	IX
 
     	POP	HL		; Restore HL and save to memory
     	LD	(SAVE_HL),HL
-    	PUSH	HL
+    	; PUSH	HL
 
     	POP	DE		; Restore DE and save to memory
     	LD	(SAVE_DE),DE
-    	PUSH	DE
+    	; PUSH	DE
 
     	POP	BC		; Restore BC and save to memory
     	LD	(SAVE_BC),BC
-    	PUSH	BC
+    	; PUSH	BC
 
     	POP	AF		; Restore AF and save A register
     	LD	(SAVE_AF),A
-    	PUSH	AF
+    	; PUSH	AF
 
     	; Save flags register
     	PUSH	AF
@@ -84,15 +209,15 @@ OSWRCH:
     	LD	(SAVE_AP),A
     	EX	AF,AF'		; Back to normal
 
-    	EXX			; Get alternate BC, DE, HL
-    	LD	(SAVE_BP),B
-    	LD	(SAVE_CP),C
-    	LD	(SAVE_DP),D
-    	LD	(SAVE_EP),E
-    	LD	(SAVE_HP),H
-    	LD	(SAVE_LP),L
-    	LD	(SAVE_BCP),BC
-    	EXX			; Back to normal
+    	; EXX			; Get alternate BC, DE, HL
+    	; LD	(SAVE_BP),B
+    	; LD	(SAVE_CP),C
+    	; LD	(SAVE_DP),D
+    	; LD	(SAVE_EP),E
+    	; LD	(SAVE_HP),H
+    	; LD	(SAVE_LP),L
+    	; LD	(SAVE_BCP),BC
+    	; EXX			; Back to normal
 
     	; Get current SP value
     	LD	HL,0
@@ -101,11 +226,11 @@ OSWRCH:
 
     	; === PRINT HEADER ===
     	LD	A,'='
-    	CALL	OSWRCH
+    	CALL	OUTCH
     	LD	A,'='
-    	CALL	OSWRCH
+    	CALL	OUTCH
     	LD	A,' '
-    	CALL	OSWRCH
+    	CALL	OUTCH
     	LD	HL,TITLE
     	CALL	PRTSTR
 
@@ -115,6 +240,7 @@ OSWRCH:
     	; === PRIMARY REGISTERS - ROW 1 ===
     	LD	HL,LBL_A
     	CALL	PRTSTR
+
     	LD	A,(SAVE_AF)
     	CALL	PRTHEX
 
@@ -265,7 +391,7 @@ OSWRCH:
     	LD	A,'0'
     	JR	Z,NOCARRY
     	LD	A,'1'
-    NOCARRY:	CALL	OSWRCH
+    NOCARRY:	CALL	OUTCH
 
     	; Subtract flag (bit 1)
     	LD	HL,LBL_N_FLAG
@@ -275,7 +401,7 @@ OSWRCH:
     	LD	A,'0'
     	JR	Z,NOSUBTRACT
     	LD	A,'1'
-    NOSUBTRACT: CALL	OSWRCH
+    NOSUBTRACT: CALL	OUTCH
 
     	; Parity flag (bit 2)
     	LD	HL,LBL_P_FLAG
@@ -285,7 +411,7 @@ OSWRCH:
     	LD	A,'0'
     	JR	Z,NOPARITY
     	LD	A,'1'
-    NOPARITY:	CALL	OSWRCH
+    NOPARITY:	CALL	OUTCH
 
     	; Half-carry flag (bit 4)
     	LD	HL,LBL_H_FLAG
@@ -295,7 +421,7 @@ OSWRCH:
     	LD	A,'0'
     	JR	Z,NOHALF
     	LD	A,'1'
-    NOHALF:		CALL	OSWRCH
+    NOHALF:		CALL	OUTCH
 
     	CALL	CRLF
 
@@ -307,7 +433,7 @@ OSWRCH:
     	LD	A,'0'
     	JR	Z,NOZERO
     	LD	A,'1'
-    NOZERO:		CALL	OSWRCH
+    NOZERO:		CALL	OUTCH
 
     	; Sign flag (bit 7)
     	LD	HL,LBL_S_FLAG
@@ -317,7 +443,7 @@ OSWRCH:
     	LD	A,'0'
     	JR	Z,NOSIGN
     	LD	A,'1'
-    NOSIGN:		CALL	OSWRCH
+    NOSIGN:		CALL	OUTCH
 
     	CALL	CRLF
     	CALL	CRLF
@@ -336,12 +462,13 @@ OSWRCH:
     ;   Input: HL = pointer to string (null-terminated)
     ;   Output: String printed to console
     ;   Destroys: A, HL
-    ;   Uses: OSWRCH
+    ;   Uses: OUTCH
     ;
-    PRTSTR:	LD	A,(HL)
+    PRTSTR:
+        LD	A,(HL)
     	OR	A
     	RET	Z
-    	CALL	OSWRCH
+    	CALL	OUTCH
     	INC	HL
     	JR	PRTSTR
 
@@ -350,7 +477,7 @@ OSWRCH:
     ;   Input: A = value to print (8-bit)
     ;   Output: 2 hex digits sent to console
     ;   Destroys: A
-    ;   Uses: OSWRCH
+    ;   Uses: OUTCH
     ;
     PRTHEX:	PUSH	AF
     	RRA
@@ -364,7 +491,7 @@ OSWRCH:
     	DAA
     	ADC	A,40H
     	DAA
-    	CALL	OSWRCH
+    	CALL	OUTCH
     	RET
 
     ;
@@ -372,7 +499,7 @@ OSWRCH:
     ;   Input: HL = 16-bit value
     ;   Output: 4 hex digits sent to console (HHLL format)
     ;   Destroys: A, HL
-    ;   Uses: OSWRCH, PRTHEX
+    ;   Uses: OUTCH, PRTHEX
     ;
     PRTHEX16:
     	LD	A,H
@@ -472,5 +599,8 @@ OSWRCH:
     		DEFB	0
     LBL_S_FLAG:	DEFM	'  S (Sign)       = '
     		DEFB	0
+    TESTSTR: DEFM 'HELLO WORLD'
+        DEFB 0
 
-    	END
+
+END

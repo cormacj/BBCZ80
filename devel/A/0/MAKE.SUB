@@ -1,20 +1,16 @@
 z80asm dist/rmf
-
 z80asm main/rmf
-
 z80asm exec/rmf
-
 z80asm eval/rmf
-
 z80asm asmb/rmf
 z80asm cmos/rmf
-
 z80asm math/rmf
 z80asm amstrad3/rmf
+z80asm regdump/rmf
 z80asm data/rmf
 era bbcbasic.com
 era *.LST
-link bbcbasic=dist,main,exec,eval,asmb,math,amstrad3,cmos,/p:4B00,data
+link bbcbasic=dist,main,exec,eval,asmb,math,amstrad3,regdump,cmos,/p:4F00,data
 hexbin bbcbasic
 era bbcbasic.hex
 ren bbcbasic.com=bbcbasic.bin

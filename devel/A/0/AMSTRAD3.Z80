@@ -31,24 +31,21 @@
 ;
 	EXTRN	EXTERR
     EXTRN   XEQ
+    EXTRN REGDUMP
 ;
     ; BDOS EQU 5
     PRINT_S EQU 9
-MODE:
 
-; =====================================================================
-; Z80 Assembly Routine to Print a Null-Terminated String
-; =====================================================================
-    push ix
-    ; push iy
+MODE:
+    ; TODO needs an eval here. A=1:MODE A gets passed as "A" rather than "1"
+    ; Uses Esc/3 to change mode.
+    ; Not sure if I should be subbing 0 here.
+    ; It seems that 0x27,"3",0x1 works the same as 0x27,"3","1"
     LD (SETMODE),A
     ld hl, MODESTR        ; Load the starting address of the string into HL
     call print_string     ; Call the string printing subroutine
-    ; pop iy
-    pop ix
-    xor a
+    inc iy ;INC IY (SYNTAX ERROR OTHERWISE)
     JP XEQ
-    ; ret                   ; Return to the operating system / main program
 
 print_string:
     ld a, (hl)            ; Load the character from memory address HL into register A
@@ -64,28 +61,12 @@ print_string:
 ; Platform-Specific Single-Character Output Examples
 ; =====================================================================
 print_char:
-    ; CHOOSE ONE OF THE FOLLOWING BASED ON YOUR SYSTEM:
-
-    ; --- Option A: ZX Spectrum ---
-    ; rst $10             ; Built-in ROM call to print the ASCII char in register A
-    ; ret
-
-    ; --- Option B: CP/M Operating System ---
+    push hl
     ld c, 2             ; CP/M BDOS function 2: Console Output
-    ld e, a             ; CP/M expects the character in register E
+    ld e, a
+    pop hl              ; CP/M expects the character in register E
     jp 5            ; Call BDOS (it handles its own return)
 
-    ; --- Option C: Amstrad CPC ---
-    ; call $BB5A          ; Firmware call 'TXT OUTPUT' prints character in A
-    ; ret
-
-; =====================================================================
-; Data Section
-; =====================================================================
-my_string:
-    defb "Hello, World!", 0   ; The string data, terminated with a null byte (0)
-
-;
 MODESTR:
     ;CRT codes for MODE
     DEFB    27
