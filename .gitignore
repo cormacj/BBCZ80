@@ -47,3 +47,12 @@ build/
 *~
 #*
 .#*
+
+#Misc
+devel/A/0/BBCBASIC.COM
+devel/A/0/hexprint.z80
+devel/graphics/
+devel/res.txt
+t/
+
+
