@@ -4,11 +4,18 @@
 # Requires cpcfs and caprice32
 # My caprice32 config has Graduate CP/M roms installed.
 
+echo "Removing old BBCBASIC.COM..."
 rm A/0/BBCBASIC.COM
-# rm A/0/*.REL
-# rm A/0/*.LST
+
+#Next bit moved to .SUB file
+#echo "Cleanup intermediate build files"
+#rm A/0/*.REL
+#rm A/0/*.LST
+
+echo "Running CP/M build..."
 ./RunCPM > res.txt
 
+echo "Validating..."
 ./validate.sh
 
 if [ $? -eq 0 ]; then

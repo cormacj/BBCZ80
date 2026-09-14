@@ -447,7 +447,7 @@ PUTCHAR:
 
     	CALL	CRLF
     	CALL	CRLF
-
+        call WAITKEY
     	; Restore registers
     	POP	IY
     	POP	IX
@@ -602,5 +602,52 @@ PUTCHAR:
     TESTSTR: DEFM 'HELLO WORLD'
         DEFB 0
 
+        ; BDOS Function 1 Example for Z80 / CPOM
+        ; Reads a character with echo, displays it, and exits on 'q'.
+
+                ; ORG     100H        ; CP/M transient program origin
+
+        BDOS    EQU     0005H       ; BDOS entry point
+        CONIN   EQU     0001H       ; Function 1: Console Input (with echo)
+        CONOUT  EQU     0002H       ; Function 2: Console Output (optional)
+        CR      EQU     0DH         ; Carriage return
+        LF      EQU     0AH         ; Line feed
+
+        WAITKEY:
+                ; Print prompt message
+                LD      DE, PROMPT_MSG
+                LD      C, 9        ; Function 9: Print string
+                CALL    BDOS
+
+        MAIN_LOOP:
+                ; Call BDOS Function 1 to read character
+                LD      C, CONIN
+                CALL    BDOS        ; Returns character in A (and echoes it)
+
+                ; Check if user pressed 'q' or 'Q' to exit
+                CP      'q'
+                JR      Z, EXIT
+                CP      'Q'
+                JR      Z, EXIT
+
+                ; (Optional) Echo a new line or do something with the char in A
+                JR      MAIN_LOOP
+
+        EXIT:
+                ; Print newline before exiting
+                LD      DE, EXIT_MSG
+                LD      C, 9
+                CALL    BDOS
+
+                ; Return to CP/M (CCP)
+                RET
+
+        PROMPT_MSG:
+                DB      'Type any key (q to quit): ', '$'
+        EXIT_MSG:
+                DB      13, 10, 'Done.', 13, 10, '$'
+
+
+                ; END     START
 
 END

@@ -1,3 +1,23 @@
+TITLE	COPYRIGHT (C) R.T.RUSSELL 1983-2024
+;
+;PATCH FOR BBC BASIC TO CP/M 2.2 & 3.0
+;* AMSTRAD VERSION  *
+;(C) COPYRIGHT R.T.RUSSELL, 02-01-1984
+;VERSION 5.0, 12-07-2024
+;
+
+EXTRN	ITEMI
+EXTRN	EXPRI
+EXTRN	COMMA
+EXTRN	TERMQ
+EXTRN	BRAKET
+EXTRN	EXTERR
+EXTRN	STOREN
+EXTRN	TRAP
+EXTRN	VAR
+EXTRN	NXT
+EXTRN	XEQ
+
 ;
 	GLOBAL	CLG
 	GLOBAL	COLOUR
@@ -32,15 +52,56 @@
 	EXTRN	EXTERR
     EXTRN   XEQ
     EXTRN REGDUMP
-;
-    ; BDOS EQU 5
-    PRINT_S EQU 9
+    EXTRN EXPRI
 
+;Defined in AMSMOS.Z80
+    EXTRN BIOS
+    EXTRN BIOSCALL
+    EXTRN INITBIOS
+;
+; BDOS EQU 5
+PRINT_S EQU 9
+
+; For DRAW BY or PLOT BY checking
+TBY	EQU	0FH
+
+MODEFN:
+;MODEFN - var=MODE
+;
+    ;On BBC this next call exits with:
+    ;  X contains character value (0 if char. not recognised)
+    ;  Y contains graphics MODE number
+    ;LD	A,135
+	;CALL	OSBYTE
+    ;
+    ;BBCBASIC uses HL as the variable return.
+    LD  A,(SETMODE)
+    SUB '0'
+	LD	L,A
+RETU8:	XOR	A
+	LD	H,A
+    CALL REGDUMP
+	JR	RETEXX
+
+RETEXX:	EXX
+	LD	H,A
+	LD	L,A
+	XOR	A
+	LD	C,A
+	RET
+;
 MODE:
     ; TODO needs an eval here. A=1:MODE A gets passed as "A" rather than "1"
     ; Uses Esc/3 to change mode.
     ; Not sure if I should be subbing 0 here.
     ; It seems that 0x27,"3",0x1 works the same as 0x27,"3","1"
+    ; call REGDUMP
+    CALL	EXPRI
+    ;Returns args in C and L
+    EXX
+    LD A,C
+    ADD '0'
+    ; call REGDUMP
     LD (SETMODE),A
     ld hl, MODESTR        ; Load the starting address of the string into HL
     call print_string     ; Call the string printing subroutine
@@ -72,22 +133,135 @@ MODESTR:
     DEFB    27
     DEFB    '3'
 SETMODE:
-    DEFB    0
+    ;CP/M starts in mode 2 - should return correct mode if someone uses var=MODE before calling mode.
+    DEFB    '2'
     ;CRT code to reset cursor
     DEFB    27
     DEFB    'H'
     ; DEFB    '0'
     defb    0
-CMG:
-    DEFM 'Ok, did that work...',10,13,'$'
-    DEFB  0
+
+
+;
+CEXPRI:	CALL	COMMA
+	JP	EXPRI
+;
+;
+VDU25:	LD	B,25
+WRCH6:	LD	A,B
+	CALL OSWRCH
+WRCH5:	LD	A,C
+	CALL OSWRCH
+WRCH4:	LD	A,E
+	CALL OSWRCH
+WRCH3:	LD	A,D
+	CALL OSWRCH
+WRCH2:	LD	A,L
+	CALL OSWRCH
+	LD	A,H
+	JP	OSWRCH
+
+;MOVE [BY] x,y
+;DRAW [BY] x,y
+;PLOT [BY] [n,]x,y
+;FILL [BY] x,y
+
+MOVE:
+	LD	C,4
+	JR	PLOT1
+;
+DRAW:
+	LD	C,5
+	JR	PLOT1
+;
+FILL:
+	LD	C,133
+	JR	PLOT1
+;
+PLOT:
+	LD	C,69
+	CP	TBY
+	JR	Z,PLOT1
+	CALL	EXPRI
+	EXX
+	PUSH	HL
+	CALL	CEXPRI
+	EXX
+	LD	A,(IY)
+	CP	','
+	JR	Z,PLOT3
+	POP	DE
+	LD	C,69
+	JR	PLOT4
+;
+PLOT1:	CP	TBY
+	JR	NZ,PLOT2
+	INC	IY
+	RES	2,C		;Change absolute to relative
+PLOT2:	PUSH	BC
+	CALL	EXPRI
+	EXX
+PLOT3:	PUSH	HL
+	CALL	CEXPRI
+	EXX
+	POP	DE
+	POP	BC
+PLOT4:	CALL	VDU25
+	JP	XEQ
+
+DRAW2:
+call INITBIOS
+; Amstrad CPC Firmware Addresses (Low-level jumpblock equivalents)
+GRA_MOVE_ABS    equ     0BBC0H          ; Move graphics cursor absolute
+GRA_DRAW_ABS    equ     0BBF6H          ; Draw line absolute
+; call REGDUMP
+                ; ; Step 1: Move graphics cursor to start position (X=50, Y=50)
+                ; ld hl,GRA_MOVE_ABS
+                ; LD     (FWFUNC),hl
+                ; ld      de, 50          ; X coordinate in DE
+                ; ld      hl, 50          ; Y coordinate in HL
+                ; CALL DOFWJUMP
+                ; jp XEQ
+                CALL	EXPRI
+                ;Returns args in C and L
+                EXX
+                CALL REGDUMP
+                ; Step 2: Draw a line to end position (X=250, Y=150)
+                ld hl,GRA_DRAW_ABS
+                LD     (BIOSCALL),hl
+                ld      de, 250         ; Target X coordinate in DE
+                ld      hl, 150         ; Target Y coordinate in HL
+                CALL BIOS
+                ; CALL REGDUMP
+                ; Return to CP/M
+                ; CALL POPALL
+                JP XEQ
+
+PUSHALL:
+PUSH	AF
+PUSH	BC
+PUSH	DE
+PUSH	HL
+PUSH	IX
+PUSH	IY
+RET
+
+POPALL:
+POP	IY
+POP	IX
+POP	HL
+POP	DE
+POP	BC
+POP	AF
+RET
+
 CLG:
 COLOUR:
-DRAW:
+
 ENVEL:
 GCOL:
-MOVE:
-PLOT:
+; MOVE:
+; PLOT:
 SOUND:
 ADVAL:
 POINT:
@@ -95,14 +269,13 @@ GETIMS:
 PUTIMS:
 CIRCLE:
 ELLIPS:
-FILL:
+; FILL:
 MOUSE:
 ORIGIN:
 RECTAN:
 LINE:
 TINT:
 TINTFN:
-MODEFN:
 WIDFN:
 WAIT:
 SYS:
